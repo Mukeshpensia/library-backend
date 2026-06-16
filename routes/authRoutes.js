@@ -9,11 +9,15 @@ async function authRoutes(fastify, options) {
     const authService = new AuthService(userModel, fastify);
     const authController = new AuthController(authService, fastify);
 
+    // Tight rate limits on the credential-guessing / email-spam surfaces.
+    const loginLimit = { rateLimit: { max: 5, timeWindow: '1 minute' } };
+    const forgotLimit = { rateLimit: { max: 3, timeWindow: '1 minute' } };
+
     // Public routes
     fastify.post('/register', { schema: schema.register }, authController.register.bind(authController));
-    fastify.post('/login', { schema: schema.login }, authController.login.bind(authController));
+    fastify.post('/login', { schema: schema.login, config: loginLimit }, authController.login.bind(authController));
     fastify.post('/refresh', { schema: schema.refresh }, authController.refresh.bind(authController));
-    fastify.post('/forgot-password', { schema: schema.forgotPassword }, authController.forgotPassword.bind(authController));
+    fastify.post('/forgot-password', { schema: schema.forgotPassword, config: forgotLimit }, authController.forgotPassword.bind(authController));
     fastify.post('/reset-password', { schema: schema.resetPassword }, authController.resetPassword.bind(authController));
     fastify.post('/verify-email', { schema: schema.verifyEmail }, authController.verifyEmail.bind(authController));
 

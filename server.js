@@ -6,8 +6,30 @@ const fastify = require('fastify')({
 const path = require('path');
 const fastifyMultipart = require('@fastify/multipart');
 const setupScheduler = require('./utils/scheduler');
+const { registerErrorHandler } = require('./utils/errors');
+
+// Consistent error + 404 responses for every route ({ success:false, error:{code,message} })
+registerErrorHandler(fastify);
 
 // Register plugins
+// Security headers. CSP is disabled so the Swagger UI at /docs (inline
+// scripts/styles) keeps working; all other hardening headers still apply.
+fastify.register(require('@fastify/helmet'), { contentSecurityPolicy: false });
+
+// Rate limiting. global:false => only routes that opt in via
+// `config.rateLimit` are limited (currently /auth/login and /auth/forgot-password).
+fastify.register(require('@fastify/rate-limit'), {
+    global: false,
+    // The plugin THROWS whatever this returns, so it must be an Error carrying a
+    // statusCode. Our setErrorHandler then renders it as the standard envelope.
+    errorResponseBuilder: (request, context) => {
+        const err = new Error(`Too many requests. Try again in ${Math.ceil(context.ttl / 1000)}s.`);
+        err.statusCode = context.statusCode; // 429
+        err.code = 'RATE_LIMITED';
+        return err;
+    }
+});
+
 fastify.register(require('./plugins/swagger')); // OpenAPI + Swagger UI at /docs (must precede routes)
 fastify.register(require('./plugins/db')); // Our custom DB plugin
 fastify.register(require('@fastify/cookie')); // Handle cookies for refresh tokens
