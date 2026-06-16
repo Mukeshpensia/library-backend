@@ -1,0 +1,103 @@
+// models/userModel.js
+const USER_UPDATABLE_FIELDS = new Set(['full_name', 'department', 'phone', 'profile_pic']);
+
+class UserModel {
+    constructor(db) {
+        this.db = db;
+    }
+
+    async findById(id) {
+        const [rows] = await this.db.query(
+            'SELECT id, full_name, email, role, profile_pic, student_id, employee_id, department, phone, is_active, max_borrow_limit, created_at FROM users WHERE id = ? AND deleted_at IS NULL',
+            [id]
+        );
+        return rows[0] || null;
+    }
+
+    async findByEmail(email) {
+        const [rows] = await this.db.query(
+            'SELECT id, full_name, email, password_hash, role, is_active FROM users WHERE email = ? AND deleted_at IS NULL',
+            [email]
+        );
+        return rows[0] || null;
+    }
+
+    async findByStudentOrEmployeeId(idValue, isStudent = true) {
+        const column = isStudent ? 'student_id' : 'employee_id';
+        const [rows] = await this.db.query(
+            `SELECT id FROM users WHERE ${column} = ? AND deleted_at IS NULL`,
+            [idValue]
+        );
+        return rows[0] || null;
+    }
+
+    async createUser(userData) {
+        const { id, full_name, email, password_hash, role, student_id, employee_id, department, phone } = userData;
+        await this.db.query(
+            'INSERT INTO users (id, full_name, email, password_hash, role, student_id, employee_id, department, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [id, full_name, email, password_hash, role, student_id, employee_id, department, phone]
+        );
+        return id;
+    }
+
+    async updateProfile(id, updateData) {
+        const safeData = Object.fromEntries(
+            Object.entries(updateData).filter(([k]) => USER_UPDATABLE_FIELDS.has(k))
+        );
+        if (Object.keys(safeData).length === 0) return;
+        const fields = Object.keys(safeData).map(key => `${key} = ?`).join(', ');
+        const values = [...Object.values(safeData), id];
+        await this.db.query(`UPDATE users SET ${fields} WHERE id = ?`, values);
+    }
+
+    async updatePassword(id, hashedPassword) {
+        await this.db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, id]);
+    }
+
+    async softDelete(id) {
+        await this.db.query('UPDATE users SET deleted_at = NOW() WHERE id = ?', [id]);
+    }
+
+    async updateLastLogin(id) {
+        await this.db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [id]);
+    }
+
+    async findAll({ filters = {}, limit = 20, offset = 0 }) {
+        let query = 'SELECT id, full_name, email, role, profile_pic, department, created_at FROM users WHERE deleted_at IS NULL';
+        const params = [];
+
+        if (filters.role) {
+            query += ' AND role = ?';
+            params.push(filters.role);
+        }
+        if (filters.search) {
+            query += ' AND (full_name LIKE ? OR email LIKE ?)';
+            params.push(`%${filters.search}%`, `%${filters.search}%`);
+        }
+
+        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
+
+        const [rows] = await this.db.query(query, params);
+        return rows;
+    }
+
+    async countAll({ filters = {} }) {
+        let query = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
+        const params = [];
+
+        if (filters.role) {
+            query += ' AND role = ?';
+            params.push(filters.role);
+        }
+        if (filters.search) {
+            query += ' AND (full_name LIKE ? OR email LIKE ?)';
+            params.push(`%${filters.search}%`, `%${filters.search}%`);
+        }
+
+        const [rows] = await this.db.query(query, params);
+        return rows[0].count;
+    }
+}
+
+module.exports = UserModel;
