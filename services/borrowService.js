@@ -22,13 +22,23 @@ class BorrowService {
             return { success: false, message: `Book copy is not available (current status: ${copies[0].status_enum}).` };
         }
 
+        // Default the due date to today + the configured loan period (14 days)
+        // when the caller doesn't supply one.
+        let due = dueDate;
+        if (!due) {
+            const loanDays = parseInt(process.env.DEFAULT_LOAN_DAYS, 10) || 14;
+            const d = new Date();
+            d.setDate(d.getDate() + loanDays);
+            due = d.toISOString().slice(0, 10); // YYYY-MM-DD
+        }
+
         const id = uuidv4();
         await this.borrowModel.create({
             id,
             user_id: userId,
             book_copy_id: bookCopyId,
             issued_by: issuedBy,
-            due_date: dueDate,
+            due_date: due,
             notes
         });
 
@@ -59,7 +69,7 @@ class BorrowService {
 
         // Check for reservations
         const [copy] = await this.fastify.mysql.query('SELECT book_id FROM book_copies WHERE id = ?', [borrow.book_copy_id]);
-        const [reservations] = await this.fastify.mysql.query('SELECT id FROM reservations WHERE book_id = ? AND status = "pending"', [copy[0].book_id]);
+        const [reservations] = await this.fastify.mysql.query(`SELECT id FROM reservations WHERE book_id = ? AND status = 'pending'`, [copy[0].book_id]);
         
         if (reservations.length > 0) {
             return { success: false, message: 'Book cannot be renewed as it has pending reservations.' };
@@ -76,6 +86,16 @@ class BorrowService {
 
     async getAllBorrows(options) {
         return await this.borrowModel.findAll(options);
+    }
+
+    async payFine(borrowId, staffId) {
+        const borrow = await this.borrowModel.findById(borrowId);
+        if (!borrow) return { success: false, message: 'Borrow record not found.' };
+        const ok = await this.borrowModel.markFinePaid(borrowId);
+        if (ok) {
+            await this.auditLogModel.log(uuidv4(), staffId, 'PAY_FINE', 'borrows', borrowId, { amount: borrow.fine_amount });
+        }
+        return { success: true };
     }
 }
 

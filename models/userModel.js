@@ -62,6 +62,22 @@ class UserModel {
         await this.db.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [id]);
     }
 
+    // Lightweight lookup for circulation (librarian+admin): match name, email,
+    // student_id, or employee_id. Returns the fields needed to pick a borrower.
+    async search(q, limit = 10) {
+        const like = `%${q}%`;
+        const [rows] = await this.db.query(
+            `SELECT id, full_name, email, role, student_id, employee_id, is_active, max_borrow_limit
+             FROM users
+             WHERE deleted_at IS NULL
+               AND (full_name LIKE ? OR email LIKE ? OR student_id LIKE ? OR employee_id LIKE ?)
+             ORDER BY full_name ASC
+             LIMIT ?`,
+            [like, like, like, like, limit]
+        );
+        return rows;
+    }
+
     async findAll({ filters = {}, limit = 20, offset = 0 }) {
         let query = 'SELECT id, full_name, email, role, profile_pic, department, created_at FROM users WHERE deleted_at IS NULL';
         const params = [];

@@ -14,6 +14,13 @@ async function borrowRoutes(fastify, options) {
     fastify.get('/borrows', { onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])], schema: schema.list }, borrowController.list.bind(borrowController));
     fastify.post('/borrows', { onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])], schema: schema.issue }, borrowController.issue.bind(borrowController));
     fastify.post('/borrows/:id/return', { onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])], schema: schema.returnBook }, borrowController.returnBook.bind(borrowController));
+    fastify.post('/borrows/:id/pay-fine', {
+        onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])],
+        schema: {
+            tags: ['borrows'], summary: 'Mark a borrow fine as paid (staff)',
+            params: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } }
+        }
+    }, borrowController.payFine.bind(borrowController));
 }
 
 module.exports = borrowRoutes;

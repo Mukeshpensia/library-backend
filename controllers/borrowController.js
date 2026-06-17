@@ -44,6 +44,14 @@ class BorrowController {
         });
         return reply.send({ success: true, data: result });
     }
+
+    async payFine(request, reply) {
+        const result = await this.borrowService.payFine(request.params.id, request.user.id);
+        if (!result.success) {
+            return reply.code(404).send({ success: false, error: { code: 'BORROW_NOT_FOUND', message: result.message } });
+        }
+        return reply.send({ success: true, message: 'Fine marked as paid.' });
+    }
 }
 
 module.exports = BorrowController;

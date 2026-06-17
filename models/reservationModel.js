@@ -14,7 +14,7 @@ class ReservationModel {
 
     async findActiveByBook(bookId) {
         const [rows] = await this.db.query(
-            'SELECT * FROM reservations WHERE book_id = ? AND status = "pending" ORDER BY reserved_at ASC',
+            `SELECT * FROM reservations WHERE book_id = ? AND status = 'pending' ORDER BY reserved_at ASC`,
             [bookId]
         );
         return rows;
@@ -41,7 +41,7 @@ class ReservationModel {
     }
 
     async cancel(id, userId) {
-        await this.db.query('UPDATE reservations SET status = "cancelled" WHERE id = ? AND user_id = ?', [id, userId]);
+        await this.db.query(`UPDATE reservations SET status = 'cancelled' WHERE id = ? AND user_id = ?`, [id, userId]);
     }
 }
 

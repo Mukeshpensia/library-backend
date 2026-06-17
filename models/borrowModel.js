@@ -17,7 +17,7 @@ class BorrowModel {
         );
         
         // Update copy status to borrowed
-        await this.db.query('UPDATE book_copies SET status_enum = "borrowed" WHERE id = ?', [book_copy_id]);
+        await this.db.query(`UPDATE book_copies SET status_enum = 'borrowed' WHERE id = ?`, [book_copy_id]);
     }
 
     async returnBook(id, returnedBy, condition, notes) {
@@ -36,12 +36,12 @@ class BorrowModel {
         }
 
         await this.db.query(
-            'UPDATE borrows SET returned_by = ?, returned_at = ?, status_enum = "returned", fine_amount = ?, notes = CONCAT(IFNULL(notes, ""), ?) WHERE id = ?',
+            `UPDATE borrows SET returned_by = ?, returned_at = ?, status_enum = 'returned', fine_amount = ?, notes = CONCAT(IFNULL(notes, ''), ?) WHERE id = ?`,
             [returnedBy, returnedAt, fineAmount, `\nReturn notes: ${notes}, condition: ${condition}`, id]
         );
 
         // Update copy status back to available
-        await this.db.query('UPDATE book_copies SET status_enum = "available", condition_enum = ? WHERE id = ?', [condition, borrow[0].book_copy_id]);
+        await this.db.query(`UPDATE book_copies SET status_enum = 'available', condition_enum = ? WHERE id = ?`, [condition, borrow[0].book_copy_id]);
         
         return { fineAmount, returnedAt };
     }
@@ -53,13 +53,37 @@ class BorrowModel {
         );
     }
 
+    async markFinePaid(id) {
+        const [res] = await this.db.query(
+            'UPDATE borrows SET fine_paid = TRUE WHERE id = ?',
+            [id]
+        );
+        return res.affectedRows > 0;
+    }
+
     async findByUser(userId) {
-        const [rows] = await this.db.query('SELECT * FROM borrows WHERE user_id = ? ORDER BY issued_at DESC', [userId]);
+        const [rows] = await this.db.query(
+            `SELECT b.*, bc.barcode,
+                    bk.id AS book_id, bk.title AS book_title,
+                    bk.authors AS book_authors, bk.cover_image_url AS book_cover
+             FROM borrows b
+             JOIN book_copies bc ON b.book_copy_id = bc.id
+             JOIN books bk ON bc.book_id = bk.id
+             WHERE b.user_id = ?
+             ORDER BY b.issued_at DESC`,
+            [userId]
+        );
         return rows;
     }
 
     async findAll({ filters = {}, limit = 20, offset = 0 }) {
-        let query = 'SELECT b.*, u.full_name as user_name, bc.barcode FROM borrows b JOIN users u ON b.user_id = u.id JOIN book_copies bc ON b.book_copy_id = bc.id WHERE 1=1';
+        let query = `SELECT b.*, u.full_name as user_name, bc.barcode,
+                            bk.id AS book_id, bk.title AS book_title
+                     FROM borrows b
+                     JOIN users u ON b.user_id = u.id
+                     JOIN book_copies bc ON b.book_copy_id = bc.id
+                     JOIN books bk ON bc.book_id = bk.id
+                     WHERE 1=1`;
         const params = [];
 
         if (filters.status) {

@@ -5,9 +5,9 @@ class BookController {
     }
 
     async list(request, reply) {
-        const { q, author, language, page = 1, limit = 20, sort, order } = request.query;
+        const { q, author, language, category_id, page = 1, limit = 20, sort, order } = request.query;
         const result = await this.bookService.getBooks({
-            filters: { q, author, language },
+            filters: { q, author, language, category_id },
             page: parseInt(page),
             limit: parseInt(limit),
             offset: (parseInt(page) - 1) * parseInt(limit),

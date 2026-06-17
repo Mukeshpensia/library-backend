@@ -7,9 +7,9 @@ class ReportModel {
     async getDashboardStats() {
         const [total_books] = await this.db.query('SELECT COUNT(*) as count FROM books WHERE deleted_at IS NULL');
         const [total_copies] = await this.db.query('SELECT COUNT(*) as count FROM book_copies');
-        const [available_copies] = await this.db.query('SELECT COUNT(*) as count FROM book_copies WHERE status_enum = "available"');
-        const [active_borrows] = await this.db.query('SELECT COUNT(*) as count FROM borrows WHERE status_enum = "active"');
-        const [overdue_borrows] = await this.db.query('SELECT COUNT(*) as count FROM borrows WHERE status_enum = "overdue" OR (status_enum = "active" AND due_date < CURDATE())');
+        const [available_copies] = await this.db.query(`SELECT COUNT(*) as count FROM book_copies WHERE status_enum = 'available'`);
+        const [active_borrows] = await this.db.query(`SELECT COUNT(*) as count FROM borrows WHERE status_enum = 'active'`);
+        const [overdue_borrows] = await this.db.query(`SELECT COUNT(*) as count FROM borrows WHERE status_enum = 'overdue' OR (status_enum = 'active' AND due_date < CURDATE())`);
         const [total_users] = await this.db.query('SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL');
         const [total_fines] = await this.db.query('SELECT SUM(fine_amount) as total FROM borrows WHERE fine_paid = FALSE');
 

@@ -81,6 +81,7 @@ fastify.register(require('./routes/aiRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/activityRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/reservationRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/favoriteRoutes'), { prefix: '/api/v1' });
+fastify.register(require('./routes/userRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/adminRoutes'), { prefix: '/api/v1/admin' });
 
 // Health check

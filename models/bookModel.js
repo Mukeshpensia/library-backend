@@ -88,6 +88,18 @@ class BookModel {
             query += ' AND (title LIKE ? OR isbn LIKE ? OR authors LIKE ?)';
             params.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`);
         }
+        if (filters.author) {
+            query += ' AND authors LIKE ?';
+            params.push(`%${filters.author}%`);
+        }
+        if (filters.language) {
+            query += ' AND language = ?';
+            params.push(filters.language);
+        }
+        if (filters.category_id) {
+            query += ' AND id IN (SELECT book_id FROM book_categories WHERE category_id = ?)';
+            params.push(filters.category_id);
+        }
 
         const [rows] = await this.db.query(query, params);
         return rows[0].count;
@@ -124,7 +136,7 @@ class BookModel {
 
     async updateCopyCounts(bookId) {
         const [total] = await this.db.query('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ?', [bookId]);
-        const [available] = await this.db.query('SELECT COUNT(*) as count FROM book_copies WHERE book_id = ? AND status_enum = "available"', [bookId]);
+        const [available] = await this.db.query(`SELECT COUNT(*) as count FROM book_copies WHERE book_id = ? AND status_enum = 'available'`, [bookId]);
         
         await this.db.query('UPDATE books SET total_copies = ?, available_copies = ? WHERE id = ?', [total[0].count, available[0].count, bookId]);
     }
