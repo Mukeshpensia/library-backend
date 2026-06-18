@@ -373,6 +373,17 @@ const reports = {
     dashboard: {
         tags: ['analytics'], summary: 'Dashboard summary metrics', security: bearer,
         response: { 200: okObject('Aggregated metrics'), ...err }
+    },
+    trends: {
+        tags: ['analytics'], summary: 'Borrow counts bucketed by day/week/month', security: bearer,
+        querystring: {
+            type: 'object', additionalProperties: true,
+            properties: {
+                period: { type: 'string', enum: ['day', 'week', 'month'], default: 'day' },
+                days: { type: 'integer', minimum: 1, maximum: 365, default: 30, description: 'Lookback window in days' }
+            }
+        },
+        response: { 200: okObject('Time-bucketed borrow counts'), ...err }
     }
 };
 
@@ -408,7 +419,14 @@ const activity = {
         response: { 200: okList('Activity entries'), ...err }
     },
     global: {
-        tags: ['activity'], summary: 'Global activity feed (staff)', security: bearer,
+        tags: ['activity'], summary: 'Global activity feed (staff), paginated', security: bearer,
+        querystring: {
+            type: 'object', additionalProperties: true,
+            properties: {
+                page: { type: 'integer', minimum: 1, default: 1 },
+                limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
+            }
+        },
         response: { 200: okList('Activity entries'), ...err }
     }
 };

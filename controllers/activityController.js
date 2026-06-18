@@ -10,8 +10,9 @@ class ActivityController {
     }
 
     async globalActivity(request, reply) {
-        const data = await this.activityService.getGlobalActivity();
-        return reply.send({ success: true, data });
+        const { page, limit } = request.query;
+        const { items, meta } = await this.activityService.getGlobalActivity({ page, limit });
+        return reply.send({ success: true, data: items, meta });
     }
 }
 

@@ -12,6 +12,12 @@ async function reportRoutes(fastify, options) {
         onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])],
         schema: schema.dashboard
     }, reportController.getDashboard.bind(reportController));
+
+    // Borrow counts bucketed by day/week/month for the dashboard line chart.
+    fastify.get('/reports/trends', {
+        onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])],
+        schema: schema.trends
+    }, reportController.getTrends.bind(reportController));
 }
 
 module.exports = reportRoutes;

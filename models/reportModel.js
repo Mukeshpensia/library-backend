@@ -39,6 +39,29 @@ class ReportModel {
         return rows;
     }
 
+    /**
+     * Borrow counts bucketed over time for the dashboard line chart.
+     * `period` selects the bucket granularity; `days` bounds the lookback window.
+     */
+    async getBorrowTrends(period = 'day', days = 30) {
+        const formats = {
+            day: '%Y-%m-%d',
+            week: '%x-W%v',   // ISO year + ISO week
+            month: '%Y-%m'
+        };
+        const fmt = formats[period] || formats.day;
+
+        const query = `
+            SELECT DATE_FORMAT(issued_at, ?) AS bucket, COUNT(*) AS borrow_count
+            FROM borrows
+            WHERE issued_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            GROUP BY bucket
+            ORDER BY bucket ASC
+        `;
+        const [rows] = await this.db.query(query, [fmt, days]);
+        return rows;
+    }
+
     async getPopularCategories() {
         const query = `
             SELECT c.name, COUNT(br.id) as borrow_count

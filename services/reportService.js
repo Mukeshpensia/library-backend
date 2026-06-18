@@ -17,6 +17,11 @@ class ReportService {
             popular_categories: categories
         };
     }
+
+    async getBorrowTrends(period, days) {
+        const trends = await this.reportModel.getBorrowTrends(period, days);
+        return { period: period || 'day', trends };
+    }
 }
 
 module.exports = ReportService;

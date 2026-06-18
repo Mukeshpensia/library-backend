@@ -19,12 +19,17 @@ class AuditLogModel {
         return rows;
     }
 
-    async findAll(limit = 100) {
+    async findAll(limit = 20, offset = 0) {
         const [rows] = await this.db.query(
-            'SELECT al.*, u.full_name FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id ORDER BY al.created_at DESC LIMIT ?',
-            [limit]
+            'SELECT al.*, u.full_name FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id ORDER BY al.created_at DESC LIMIT ? OFFSET ?',
+            [limit, offset]
         );
         return rows;
+    }
+
+    async count() {
+        const [rows] = await this.db.query('SELECT COUNT(*) AS total FROM audit_logs');
+        return rows[0].total;
     }
 }
 

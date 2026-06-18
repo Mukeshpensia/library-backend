@@ -31,21 +31,52 @@ class AIService {
         }));
     }
 
-    async getRecommendations(userId) {
-        // In a real system, this would call a Python microservice (Flask/FastAPI)
-        // For this prototype, we'll return trending books as a baseline recommendation.
-        const query = `
-            SELECT b.id, b.title, b.authors, b.cover_image_url, b.popularity_score
-            FROM books b
-            WHERE b.deleted_at IS NULL
-            ORDER BY b.popularity_score DESC
-            LIMIT 5
-        `;
-        const [rows] = await this.db.query(query);
+    /**
+     * Personalized recommendations for a user.
+     *
+     * Per the system design, the backend is DECOUPLED from the model: an offline
+     * Python batch job writes ranked rows into the `recommendations` table and we
+     * only READ them here. When that table has no rows for the user (cold start,
+     * or the batch job hasn't run yet) we fall back to the most popular books so
+     * the endpoint always returns something useful.
+     */
+    async getRecommendations(userId, limit = 10) {
+        const [rows] = await this.db.query(
+            `SELECT b.id, b.title, b.authors, b.cover_image_url, b.popularity_score,
+                    r.score, r.algorithm, r.rank_position, r.generated_at
+             FROM recommendations r
+             JOIN books b ON b.id = r.book_id
+             WHERE r.user_id = ? AND b.deleted_at IS NULL
+             ORDER BY r.score DESC, r.rank_position ASC
+             LIMIT ?`,
+            [userId, limit]
+        );
+
+        if (rows.length > 0) {
+            return rows.map(book => ({
+                ...book,
+                reason: 'Recommended for you'
+            }));
+        }
+
+        // Cold-start fallback: top books by popularity.
+        return this.getPopularFallback(limit);
+    }
+
+    async getPopularFallback(limit = 10) {
+        const [rows] = await this.db.query(
+            `SELECT b.id, b.title, b.authors, b.cover_image_url, b.popularity_score
+             FROM books b
+             WHERE b.deleted_at IS NULL
+             ORDER BY b.popularity_score DESC
+             LIMIT ?`,
+            [limit]
+        );
         return rows.map(book => ({
             ...book,
-            reason: 'Trending in your library',
-            algorithm: 'popularity-baseline'
+            score: book.popularity_score,
+            algorithm: 'popularity',
+            reason: 'Popular in your library'
         }));
     }
 }
