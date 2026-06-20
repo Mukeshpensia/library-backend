@@ -25,7 +25,25 @@ async function jwtPlugin(fastify, options) {
                 request.user.id = request.user.sub;
             }
         } catch (err) {
-            reply.code(401).send({ message: 'Unauthorized', error: err.message });
+            return reply.code(401).send({ message: 'Unauthorized', error: err.message });
+        }
+
+        // Revoke access the moment an account is deactivated or deleted, rather
+        // than waiting for the short-lived access token to expire. A valid JWT is
+        // necessary but not sufficient — the account must still be active.
+        const [rows] = await fastify.mysql.query(
+            'SELECT is_active, deleted_at FROM users WHERE id = ?',
+            [request.user.id]
+        );
+        const account = rows[0];
+        if (!account || account.deleted_at || !account.is_active) {
+            return reply.code(403).send({
+                success: false,
+                error: {
+                    code: 'ACCOUNT_INACTIVE',
+                    message: 'Your account is inactive. Please contact an administrator.'
+                }
+            });
         }
     });
 }
