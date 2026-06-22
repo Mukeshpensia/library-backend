@@ -1,5 +1,8 @@
 // models/userModel.js
 const USER_UPDATABLE_FIELDS = new Set(['full_name', 'department', 'phone', 'profile_pic']);
+// Fields only an admin may change (via the user-management screens). Kept
+// separate from self-profile updates so a user can never escalate their role.
+const ADMIN_UPDATABLE_FIELDS = new Set(['role', 'is_active', 'max_borrow_limit']);
 
 class UserModel {
     constructor(db) {
@@ -50,6 +53,18 @@ class UserModel {
         await this.db.query(`UPDATE users SET ${fields} WHERE id = ?`, values);
     }
 
+    // Admin-only updates (role / active / borrow limit). Uses a separate
+    // allowlist so these privileged fields can't be set via self-profile edits.
+    async adminUpdate(id, updateData) {
+        const safeData = Object.fromEntries(
+            Object.entries(updateData).filter(([k]) => ADMIN_UPDATABLE_FIELDS.has(k))
+        );
+        if (Object.keys(safeData).length === 0) return;
+        const fields = Object.keys(safeData).map(key => `${key} = ?`).join(', ');
+        const values = [...Object.values(safeData), id];
+        await this.db.query(`UPDATE users SET ${fields} WHERE id = ?`, values);
+    }
+
     async updatePassword(id, hashedPassword) {
         await this.db.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, id]);
     }
@@ -79,7 +94,7 @@ class UserModel {
     }
 
     async findAll({ filters = {}, limit = 20, offset = 0 }) {
-        let query = 'SELECT id, full_name, email, role, profile_pic, department, created_at FROM users WHERE deleted_at IS NULL';
+        let query = 'SELECT id, full_name, email, role, profile_pic, department, is_active, max_borrow_limit, last_login_at, created_at FROM users WHERE deleted_at IS NULL';
         const params = [];
 
         if (filters.role) {

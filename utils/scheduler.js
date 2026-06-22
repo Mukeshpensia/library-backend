@@ -1,17 +1,23 @@
 // utils/scheduler.js
 const cron = require('node-cron');
-const NotificationService = require('../services/notificationService');
+const runDailyJobs = require('./dailyJobs');
 
 function setupScheduler(fastify) {
-    const notificationService = new NotificationService(fastify);
+    // On the free tier the web service sleeps, so an external Render Cron Job
+    // hits POST /cron/daily instead. Set CRON_EXTERNAL=true there to disable the
+    // in-process scheduler and avoid running the daily jobs twice.
+    if (process.env.CRON_EXTERNAL === 'true') {
+        fastify.log.info('In-process scheduler disabled (CRON_EXTERNAL=true); daily jobs run via the /cron/daily endpoint.');
+        return;
+    }
 
-    // Run every day at midnight
+    // Run every day at midnight (server time).
     cron.schedule('0 0 * * *', async () => {
-        fastify.log.info('Running scheduled job: Check Overdue Borrows');
+        fastify.log.info('Running scheduled daily jobs');
         try {
-            await notificationService.checkAndSendOverdueReminders();
+            await runDailyJobs(fastify);
         } catch (error) {
-            fastify.log.error('Error in scheduled job:', error);
+            fastify.log.error('Error in scheduled daily jobs:', error);
         }
     });
 

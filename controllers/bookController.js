@@ -1,4 +1,6 @@
 // controllers/bookController.js
+const { saveCoverImage, deleteCoverImage } = require('../utils/imageProcessor');
+
 class BookController {
     constructor(bookService) {
         this.bookService = bookService;
@@ -36,6 +38,32 @@ class BookController {
     async delete(request, reply) {
         await this.bookService.deleteBook(request.params.id);
         return reply.send({ success: true, message: 'Book deleted successfully.' });
+    }
+
+    async uploadCover(request, reply) {
+        const bookId = request.params.id;
+
+        const book = await this.bookService.getBookById(bookId);
+        if (!book) {
+            return reply.code(404).send({ success: false, error: { code: 'BOOK_NOT_FOUND', message: 'Book not found.' } });
+        }
+
+        const file = await request.file();
+        if (!file || !file.filename) {
+            return reply.code(400).send({ success: false, error: { code: 'BAD_REQUEST', message: 'Cover image file is required.' } });
+        }
+        if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+            return reply.code(400).send({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid file type. Only image files are allowed.' } });
+        }
+
+        // Convert to webp/avif and store it, then point the book at the new file.
+        const coverUrl = await saveCoverImage(file, bookId);
+        await this.bookService.updateBook(bookId, { cover_image_url: coverUrl });
+
+        // Remove the previous locally-stored cover, if any.
+        deleteCoverImage(book.cover_image_url);
+
+        return reply.send({ success: true, message: 'Cover uploaded successfully.', data: { cover_image_url: coverUrl } });
     }
 
     async addCopy(request, reply) {

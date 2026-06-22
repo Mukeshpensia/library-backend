@@ -34,3 +34,10 @@ coverage/
 # Temp
 tmp/
 *.tmp
+
+# Python recommender (ai/)
+.venv/
+__pycache__/
+*.pyc
+uploads
+CLAUDE.md

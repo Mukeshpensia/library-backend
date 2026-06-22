@@ -50,6 +50,8 @@ class NotificationService {
             // In a real app, also call emailService.send(...)
             this.fastify.log.info(`Notification sent to user ${row.user_id} for book ${row.book_title}`);
         }
+
+        return rows.length;
     }
 }
 

@@ -10,8 +10,8 @@ async function categoryRoutes(fastify, options) {
     fastify.get('/categories', { onRequest: [fastify.authenticate], schema: schema.list }, categoryController.list.bind(categoryController));
 
     // Admin routes
-    fastify.post('/categories', { onRequest: [fastify.authenticate, fastify.authorize(['admin'])], schema: schema.create }, categoryController.create.bind(categoryController));
-    fastify.put('/categories/:id', { onRequest: [fastify.authenticate, fastify.authorize(['admin'])], schema: schema.update }, categoryController.update.bind(categoryController));
+    fastify.post('/categories', { onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])], schema: schema.create }, categoryController.create.bind(categoryController));
+    fastify.put('/categories/:id', { onRequest: [fastify.authenticate, fastify.authorize(['librarian', 'admin'])], schema: schema.update }, categoryController.update.bind(categoryController));
     fastify.delete('/categories/:id', { onRequest: [fastify.authenticate, fastify.authorize(['admin'])], schema: schema.remove }, categoryController.delete.bind(categoryController));
 }
 

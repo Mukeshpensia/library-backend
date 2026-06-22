@@ -241,6 +241,11 @@ const books = {
         tags: ['books'], summary: 'Soft-delete a book', security: bearer,
         params: idParam(), response: { 200: okMessage, ...err }
     },
+    uploadCover: {
+        tags: ['books'], summary: 'Upload a book cover (re-encoded to webp/avif)', security: bearer,
+        consumes: ['multipart/form-data'],
+        params: idParam(), response: { 200: okObject('cover_image_url'), ...err }
+    },
     addCopy: {
         tags: ['copies'], summary: 'Add a physical copy to a book', security: bearer,
         params: idParam(), body: { ...copyBody, required: ['barcode', 'condition_enum'] },
@@ -489,6 +494,29 @@ const users = {
             }
         },
         response: { 200: okList('Users'), ...err }
+    },
+    create: {
+        tags: ['users'], summary: 'Create a staff/student user (admin)', security: bearer,
+        body: {
+            type: 'object', additionalProperties: true,
+            required: ['full_name', 'email', 'password', 'role'],
+            properties: {
+                full_name: { type: 'string', minLength: 1 },
+                email: { type: 'string', format: 'email' },
+                password: { type: 'string', minLength: 6 },
+                role: { type: 'string', enum: ['student', 'librarian', 'admin'] },
+                student_id: { type: 'string' },
+                employee_id: { type: 'string' },
+                department: { type: 'string' },
+                phone: { type: 'string' },
+                max_borrow_limit: { type: 'integer', minimum: 0 }
+            }
+        },
+        response: { 201: okObject('user_id'), ...err }
+    },
+    remove: {
+        tags: ['users'], summary: 'Soft-delete a user (admin)', security: bearer,
+        params: idParam(), response: { 200: okMessage, ...err }
     },
     updateStatus: {
         tags: ['users'], summary: 'Activate / deactivate a user (admin)', security: bearer,

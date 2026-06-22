@@ -16,6 +16,8 @@ async function adminRoutes(fastify, options) {
     });
 
     fastify.get('/users', { schema: schema.list }, adminUserController.list.bind(adminUserController));
+    fastify.post('/users', { schema: schema.create }, adminUserController.create.bind(adminUserController));
+    fastify.delete('/users/:id', { schema: schema.remove }, adminUserController.remove.bind(adminUserController));
     fastify.patch('/users/:id/status', { schema: schema.updateStatus }, adminUserController.updateStatus.bind(adminUserController));
     fastify.patch('/users/:id/role', { schema: schema.updateRole }, adminUserController.updateRole.bind(adminUserController));
     fastify.patch('/users/:id/borrow-limit', { schema: schema.updateBorrowLimit }, adminUserController.updateBorrowLimit.bind(adminUserController));
