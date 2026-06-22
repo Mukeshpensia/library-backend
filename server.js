@@ -42,10 +42,16 @@ fastify.register(fastifyMultipart, {
     },
 });
 
-// Serve static files (for profile pictures)
-fastify.register(require('@fastify/static'), { 
+// Serve static files (for profile pictures and book covers). Helmet sets
+// Cross-Origin-Resource-Policy: same-origin globally, which lets these files
+// open via direct navigation but blocks the frontend (a different origin) from
+// embedding them in <img>. Override to cross-origin for uploads only.
+fastify.register(require('@fastify/static'), {
     root: path.join(__dirname, 'uploads'),
     prefix: '/uploads/',
+    setHeaders: (res) => {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
 });
 
 // Enable CORS. credentials:true is required so the browser sends/stores the
