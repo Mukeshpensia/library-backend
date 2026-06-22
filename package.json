@@ -2,6 +2,9 @@
   "name": "library-manager-backend",
   "version": "1.0.0",
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
@@ -30,6 +33,7 @@
     "mysql2": "^3.14.1",
     "node-cron": "^4.2.1",
     "pump": "^3.0.2",
+    "sharp": "^0.35.2",
     "uuid": "^11.1.0"
   }
 }

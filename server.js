@@ -83,6 +83,7 @@ fastify.register(require('./routes/reservationRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/favoriteRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/userRoutes'), { prefix: '/api/v1' });
 fastify.register(require('./routes/adminRoutes'), { prefix: '/api/v1/admin' });
+fastify.register(require('./routes/cronRoutes'), { prefix: '/api/v1' });
 
 // Health check
 fastify.get('/health', {

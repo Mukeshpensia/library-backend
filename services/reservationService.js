@@ -38,18 +38,22 @@ class ReservationService {
         return { success: true };
     }
 
+    // Called when a copy of `bookId` becomes available (e.g. on return). Fulfils
+    // the oldest pending reservation by marking it fulfilled and notifying that
+    // user to come collect the book. Returns the fulfilled reservation, if any.
     async notifyNextInQueue(bookId) {
         const reservations = await this.reservationModel.findActiveByBook(bookId);
-        if (reservations.length > 0) {
-            const next = reservations[0];
-            await this.notificationService.createNotification(
-                next.user_id,
-                'RESERVATION_READY',
-                'Reserved Book Available',
-                `A book you reserved is now available. Please visit the library to collect it.`
-            );
-            // Optionally update reservation status or keep it as pending until issued
-        }
+        if (reservations.length === 0) return null;
+
+        const next = reservations[0];
+        await this.reservationModel.updateStatus(next.id, 'fulfilled');
+        await this.notificationService.createNotification(
+            next.user_id,
+            'RESERVATION_READY',
+            'Reserved Book Available',
+            `A book you reserved is now available. Please visit the library to collect it.`
+        );
+        return next;
     }
 }
 

@@ -30,7 +30,7 @@ class BorrowController {
     }
 
     async renew(request, reply) {
-        const result = await this.borrowService.renewBook(request.params.id, request.user.id);
+        const result = await this.borrowService.renewBook(request.params.id, request.user.id, request.user.role);
         if (!result.success) return reply.code(400).send(result);
         return reply.send(result);
     }

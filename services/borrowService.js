@@ -2,11 +2,13 @@
 const { v4: uuidv4 } = require('uuid');
 const BorrowModel = require('../models/borrowModel');
 const AuditLogModel = require('../models/auditLogModel');
+const ReservationService = require('./reservationService');
 
 class BorrowService {
     constructor(fastify) {
         this.borrowModel = new BorrowModel(fastify.mysql);
         this.auditLogModel = new AuditLogModel(fastify.mysql);
+        this.reservationService = new ReservationService(fastify);
         this.fastify = fastify;
     }
 
@@ -50,10 +52,19 @@ class BorrowService {
     async returnBook(borrowId, returnedBy, condition, notes) {
         const result = await this.borrowModel.returnBook(borrowId, returnedBy, condition, notes);
         if (result) {
-            // Find user_id for logging
-            const [borrow] = await this.fastify.mysql.query('SELECT user_id FROM borrows WHERE id = ?', [borrowId]);
+            // Find the borrow's user (for logging) and the book (for reservations).
+            const [borrow] = await this.fastify.mysql.query(
+                `SELECT b.user_id, bc.book_id
+                 FROM borrows b JOIN book_copies bc ON b.book_copy_id = bc.id
+                 WHERE b.id = ?`,
+                [borrowId]
+            );
             const userId = borrow[0].user_id;
             await this.auditLogModel.log(uuidv4(), userId, 'RETURN_BOOK', 'borrows', borrowId, { returned_by: returnedBy, fine: result.fineAmount });
+
+            // The freed copy may satisfy a waiting reservation: fulfil the next
+            // person in the queue and notify them to collect the book.
+            await this.reservationService.notifyNextInQueue(borrow[0].book_id);
         }
         return result;
     }
@@ -62,9 +73,16 @@ class BorrowService {
         return await this.borrowModel.findByUser(userId);
     }
 
-    async renewBook(borrowId, userId) {
+    async renewBook(borrowId, userId, userRole) {
         const borrow = await this.borrowModel.findById(borrowId);
-        if (!borrow || borrow.user_id !== userId) return { success: false, message: 'Borrow record not found.' };
+        if (!borrow) return { success: false, message: 'Borrow record not found.' };
+
+        // A student may only renew their own borrow; librarians/admins may renew
+        // any borrow (e.g. from the circulation console).
+        const isStaff = userRole === 'librarian' || userRole === 'admin';
+        if (!isStaff && borrow.user_id !== userId) {
+            return { success: false, message: 'Borrow record not found.' };
+        }
         if (borrow.status_enum !== 'active') return { success: false, message: 'Only active borrows can be renewed.' };
 
         // Check for reservations

@@ -1,0 +1,81 @@
+# Render Blueprint — deploys this Fastify backend as a persistent web service.
+# In the Render dashboard: New > Blueprint > pick this repo. Secrets (sync:false)
+# must be filled in once in the dashboard; they are never committed.
+services:
+  - type: web
+    name: library-manager-backend
+    runtime: node
+    plan: free
+    region: oregon            # change to the region nearest your Aiven DB
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    # NOTE: Render injects PORT automatically and server.js already reads it.
+    # Do NOT set PORT yourself. The free plan has an EPHEMERAL filesystem, so
+    # /uploads is wiped on every deploy/restart — add a paid persistent disk
+    # (or external storage) if you need cover/profile images to survive.
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: COVER_IMAGE_FORMAT
+        value: webp
+      # --- Database (managed Aiven MySQL — external, already provisioned) ---
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      # --- Auth ---
+      - key: JWT_SECRET
+        generateValue: true     # Render generates a strong secret on first deploy
+      # --- Cron ---
+      # Disable in-process node-cron; the cron-job service below drives the
+      # daily jobs via POST /cron/daily so they fire even while the web service
+      # is asleep. CRON_SECRET is shared with that service.
+      - key: CRON_EXTERNAL
+        value: "true"
+      - key: CRON_SECRET
+        generateValue: true
+      # --- Frontend origin allowed by CORS ---
+      - key: WEBSITE_URL
+        sync: false
+      # --- Email (SendGrid) ---
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_SENDER_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+
+  # Scheduled trigger for the daily maintenance jobs. Runs the trigger script,
+  # which POSTs /cron/daily on the web service above (waking it if asleep).
+  - type: cron
+    name: library-manager-daily-cron
+    runtime: node
+    plan: free
+    branch: main
+    schedule: "0 0 * * *"     # daily at 00:00 UTC
+    buildCommand: "echo no build needed"   # script uses Node's built-in fetch
+    startCommand: node scripts/triggerDailyCron.js
+    envVars:
+      # Web service host (e.g. library-manager-backend.onrender.com) — the
+      # script builds https://<host>/api/v1/cron/daily from it.
+      - key: CRON_HOST
+        fromService:
+          type: web
+          name: library-manager-backend
+          property: host
+      # Same generated secret as the web service, so the header check passes.
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: library-manager-backend
+          envVarKey: CRON_SECRET
